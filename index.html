@@ -1,0 +1,892 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Unidad pilosebácea 3D</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,500;0,600;1,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: lámina anatómica a pantalla completa; panel de leyenda flotante a la izquierda (abajo en móvil) y ficha de estructura flotante */
+/* Modo claro único (decisión del usuario): fondo blanco en cualquier tema del sistema */
+:root{
+  color-scheme:light;
+  --bg:#ffffff;
+  --panel:rgba(255,255,255,.94);
+  --ink:#1b2231;
+  --ink-2:#4b566d;
+  --line:#d6dce5;
+  --accent:#b02c47;
+  --chip:#f1f3f7;
+  --halo:#ffffff;
+  --ok:#23804a;
+  --ok-bg:#e5f3ea;
+  --bad-bg:#fbe7eb;
+  --display:"Spectral",Georgia,"Times New Roman",serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+html,body{height:100%}
+[hidden]{display:none!important}
+body{
+  background:var(--bg);
+  color:var(--ink);font-family:var(--body);overflow-x:hidden;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+}
+/* altura propia: el visor puede ajustar el marco al contenido, así que el modelo no debe depender de position:fixed */
+#app{position:relative;height:100vh;height:100dvh;min-height:600px;overflow:hidden;
+  margin-left:calc(-1 * max(16px, env(safe-area-inset-left, 0px)));
+  margin-right:calc(-1 * max(16px, env(safe-area-inset-right, 0px)))}
+#scene{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;outline:none}
+#markers{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+#leaders{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+#leaders .halo{stroke:var(--halo);stroke-width:4;stroke-linecap:round;opacity:.85}
+#leaders .ld{stroke:var(--ink);stroke-width:1.3;stroke-linecap:round}
+#leaders .ld.on{stroke:var(--accent);stroke-width:1.6}
+.mk{
+  position:absolute;left:0;top:0;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;
+  border:1.5px solid #fff;background:#1b2231;color:#fff;font:500 10px/17px var(--mono);text-align:center;
+  pointer-events:auto;cursor:pointer;padding:0;box-shadow:0 1px 4px rgba(0,0,0,.35);
+  transition:scale .15s, background .15s;
+}
+.mk:hover,.mk:focus-visible{scale:1.25;background:var(--accent);outline:none}
+.mk.on{background:var(--accent);scale:1.3}
+.seg{
+  position:absolute;left:0;top:0;pointer-events:none;white-space:nowrap;
+  font:italic 600 14px/1 var(--display);color:var(--ink);transform:translate(-100%,-50%);padding-right:16px;
+  text-shadow:0 0 2px var(--halo),0 0 2px var(--halo),0 0 4px var(--halo),0 0 6px var(--halo);
+}
+.seg.segR{transform:translate(0,-50%);padding-right:0;padding-left:16px;
+}
+#toolbar{
+  position:absolute;z-index:3;top:max(16px, env(safe-area-inset-top, 0px));left:max(16px, env(safe-area-inset-left, 0px));
+  right:max(16px, env(safe-area-inset-right, 0px));display:flex;flex-wrap:wrap;gap:8px;pointer-events:none;
+}
+.tb{
+  pointer-events:auto;display:flex;align-items:center;gap:7px;height:36px;padding:0 13px 0 10px;
+  font:500 12.5px/1 var(--body);color:var(--ink);background:var(--panel);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border:1px solid var(--line);border-radius:999px;cursor:pointer;
+}
+.tb.icon{width:36px;padding:0;justify-content:center}
+#bQuiz{order:10;margin-left:auto} /* separado del resto, en el lado derecho */
+.tb:hover{border-color:var(--ink-2)}
+.tb:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tb svg{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.tb[aria-pressed="true"],.tb[aria-expanded="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+#panel{
+  position:absolute;top:calc(max(16px, env(safe-area-inset-top, 0px)) + 46px);left:max(16px, env(safe-area-inset-left, 0px));
+  bottom:max(16px, env(safe-area-inset-bottom, 0px));width:230px;box-sizing:border-box;display:flex;flex-direction:column;gap:14px;
+  background:var(--panel);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border:1px solid var(--line);border-radius:10px;padding:16px 13px 12px;overflow:hidden;
+}
+.eyebrow{margin:0;font:500 11px/1.3 var(--mono);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2)}
+h1{margin:4px 0 0;font:600 21px/1.1 var(--display);letter-spacing:-.01em;text-wrap:balance}
+.lede{margin:8px 0 0;font-size:13px;line-height:1.5;color:var(--ink-2)}
+.controls{display:flex;flex-wrap:wrap;gap:6px}
+.controls button{
+  font:500 12px/1 var(--body);color:var(--ink);background:var(--chip);border:1px solid var(--line);
+  border-radius:999px;padding:7px 11px;cursor:pointer;
+}
+.controls button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.controls button:focus-visible,.lg:focus-visible,#iClose:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#legend{flex:1;min-height:0;overflow-y:auto;margin:0 -6px;padding:0 6px;border-top:1px solid var(--line)}
+.gh{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:14px 0 4px}
+.gt{font:500 10.5px/1 var(--body);color:var(--ink-2);background:none;border:1px solid var(--line);border-radius:999px;padding:4px 9px;cursor:pointer}
+.gt:hover{color:var(--ink);border-color:var(--ink-2)}
+.gt[aria-pressed="false"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.gt:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.lg.off{opacity:.45}
+#legend h3{margin:0;font:500 10.5px/1 var(--mono);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2)}
+.lg{
+  display:grid;grid-template-columns:22px 12px 1fr;align-items:center;gap:8px;width:100%;text-align:left;
+  background:none;border:0;border-radius:6px;padding:5px 6px;font:400 13.5px/1.25 var(--body);color:var(--ink);cursor:pointer;
+}
+.lg:hover{background:var(--chip)}
+.lg.on{background:var(--chip);box-shadow:inset 2px 0 0 var(--accent)}
+.lg .n{font:500 11px/1 var(--mono);color:var(--ink-2);font-variant-numeric:tabular-nums}
+.lg .sw{width:12px;height:12px;border-radius:3px;border:1px solid var(--line)}
+.hint{margin:0;font-size:11.5px;line-height:1.45;color:var(--ink-2);border-top:1px solid var(--line);padding-top:10px}
+#info{
+  position:absolute;right:max(16px, env(safe-area-inset-right, 0px));bottom:max(16px, env(safe-area-inset-bottom, 0px));
+  width:min(360px, calc(100% - 32px));background:var(--panel);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border:1px solid var(--line);border-radius:10px;padding:16px 18px 16px;
+}
+#info h2{margin:4px 28px 6px 0;font:600 22px/1.15 var(--display);text-wrap:balance}
+#info p.d{margin:0;font-size:13.5px;line-height:1.55;max-width:60ch}
+#iClose{position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:var(--chip);color:var(--ink);font:400 16px/1 var(--body);cursor:pointer}
+#tip{
+  position:absolute;left:0;top:0;pointer-events:none;background:var(--ink);color:var(--bg);
+  font:500 12px/1 var(--body);padding:6px 8px;border-radius:5px;white-space:nowrap;transform:translate(12px,12px);
+}
+#nameBox{
+  position:absolute;right:max(16px, env(safe-area-inset-right, 0px));bottom:max(16px, env(safe-area-inset-bottom, 0px));
+  max-width:calc(100% - 32px);background:var(--panel);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border:1px solid var(--line);border-radius:10px;padding:12px 18px;font:600 21px/1.2 var(--display);color:var(--ink);
+  pointer-events:none;
+}
+#quiz{
+  position:absolute;right:max(16px, env(safe-area-inset-right, 0px));bottom:max(16px, env(safe-area-inset-bottom, 0px));
+  width:min(330px, calc(100% - 32px));box-sizing:border-box;background:var(--panel);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:10px;
+}
+#quiz h2{margin:0;font:600 19px/1.25 var(--display);text-wrap:balance}
+#quiz h2 .qn{display:inline-block;min-width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;font:500 12px/24px var(--mono);text-align:center;vertical-align:2px}
+#qOpts{display:grid;gap:6px}
+#qOpts button{
+  text-align:left;font:400 14px/1.3 var(--body);color:var(--ink);background:var(--chip);border:1px solid var(--line);
+  border-radius:8px;padding:9px 12px;cursor:pointer;
+}
+#qOpts button:hover:not(:disabled){border-color:var(--ink-2)}
+#qOpts button:disabled{cursor:default}
+#qOpts button.ok{background:var(--ok-bg);border-color:var(--ok);color:var(--ink)}
+#qOpts button.bad{background:var(--bad-bg);border-color:var(--accent)}
+#qFb{margin:0;font-size:13.5px;line-height:1.4;color:var(--ink-2);min-height:1.4em}
+#qFb.ok{color:var(--ok)} #qFb.bad{color:var(--accent)}
+.qbtns{display:flex;gap:8px;justify-content:flex-end}
+.qbtns button{font:500 13px/1 var(--body);border-radius:999px;padding:9px 14px;cursor:pointer;border:1px solid var(--line);background:var(--chip);color:var(--ink)}
+#qNext{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+#quiz button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+body.quiz .seg{visibility:hidden}
+.tb:disabled{opacity:.4;cursor:not-allowed}
+#err{position:absolute;inset:0;display:grid;place-items:center;padding:24px;text-align:center;color:var(--ink-2)}
+@media (max-width:760px){
+  #panel{top:auto;left:max(10px, env(safe-area-inset-left, 0px));right:max(10px, env(safe-area-inset-right, 0px));
+    bottom:max(10px, env(safe-area-inset-bottom, 0px));width:auto;height:40%;padding:14px 14px 10px;gap:10px}
+  h1{font-size:24px}
+  .lede{display:none}
+  .hint{display:none}
+  #quiz{right:max(10px, env(safe-area-inset-right, 0px));bottom:max(10px, env(safe-area-inset-bottom, 0px));width:auto;left:max(10px, env(safe-area-inset-left, 0px));padding:12px;gap:8px}
+  #quiz h2{font-size:17px}
+  #qOpts{grid-template-columns:1fr 1fr}
+  #qOpts button{padding:8px 10px;font-size:13px}
+  #nameBox{bottom:auto;top:calc(max(10px, env(safe-area-inset-top, 0px)) + 46px);right:max(10px, env(safe-area-inset-right, 0px));font-size:18px;padding:10px 14px}
+  #toolbar{top:max(10px, env(safe-area-inset-top, 0px));left:max(10px, env(safe-area-inset-left, 0px));right:max(10px, env(safe-area-inset-right, 0px))}
+  .tb{width:36px;padding:0;justify-content:center}
+  .tb span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  #info{top:calc(max(10px, env(safe-area-inset-top, 0px)) + 44px);bottom:auto;right:max(10px, env(safe-area-inset-right, 0px));width:auto;left:max(10px, env(safe-area-inset-left, 0px))}
+  #info p.d{font-size:13px}
+}
+@media (prefers-reduced-motion: reduce){ .mk{transition:none} }
+.mk{transition-property:scale,background}
+</style>
+
+<div id="app">
+  <canvas id="scene" tabindex="0" aria-label="Modelo 3D interactivo de la unidad pilosebácea"></canvas>
+  <div id="markers"></div>
+  <div id="toolbar" role="toolbar" aria-label="Vista del modelo">
+    <button id="menuBtn" class="tb icon" type="button" aria-expanded="false" aria-controls="panel" aria-label="Etiquetas" title="Etiquetas">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.2 2.2h5.6l6 6-5.6 5.6-6-6z"/><circle cx="5.2" cy="5.2" r="1.1"/></svg>
+    </button>
+    <button id="tSkin" class="tb" type="button" aria-pressed="true" title="Mostrar u ocultar la piel">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.8 5.2 8 2.2l6.2 3L8 8.2z"/><path d="M1.8 8.4 8 11.4l6.2-3"/><path d="M1.8 11.4 8 14.4l6.2-3"/></svg>
+      <span>Piel</span>
+    </button>
+    <button id="tCut" class="tb" type="button" aria-pressed="false" title="Mostrar u ocultar el corte sagital">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2.2" y="2.2" width="11.6" height="11.6" rx="1.5"/><path d="M8 1v14"/></svg>
+      <span>Corte sagital</span>
+    </button>
+    <button id="bQuiz" class="tb" type="button" aria-pressed="false" title="Autoevaluación">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2.2" y="2.2" width="11.6" height="11.6" rx="2"/><path d="M5 8.2l2 2 4-4.4"/></svg>
+      <span>Autoevaluación</span>
+    </button>
+    <button id="bReset" class="tb" type="button" title="Restablecer vista">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8a5 5 0 1 0 1.6-3.7"/><path d="M2.6 1.8v3h3"/></svg>
+      <span>Restablecer vista</span>
+    </button>
+  </div>
+  <aside id="panel">
+    <header>
+      <p class="eyebrow">Histología cutánea</p>
+      <h1>Unidad pilosebácea</h1>
+      <p class="lede">Folículo terminal con su glándula sebácea y su músculo erector.</p>
+    </header>
+    <nav id="legend" aria-label="Estructuras"></nav>
+  </aside>
+  <div id="nameBox" hidden aria-live="polite"></div>
+  <section id="quiz" hidden aria-live="polite" aria-label="Autoevaluación">
+    <p class="eyebrow" id="qProg"></p>
+    <h2 id="qTitle"></h2>
+    <div id="qOpts"></div>
+    <p id="qFb"></p>
+    <div class="qbtns">
+      <button id="qNext" type="button" hidden>Siguiente</button>
+      <button id="qExit" type="button">Salir</button>
+    </div>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function(){
+"use strict";
+const $ = s => document.querySelector(s);
+const canvas = $('#scene');
+if (!window.THREE) { $('#app').insertAdjacentHTML('beforeend','<div id="err">No se pudo cargar el motor 3D. Recarga la página.</div>'); return; }
+
+/* ---------- Datos de las estructuras ---------- */
+const ITEMS = [
+  {id:'tallo', g:'Segmentos del pelo', name:'Tallo', c:'#8a5a22', layer:'all', seg:[3.44,0.15],
+   d:'Porción libre del pelo, por encima de la superficie cutánea. Es queratina sin vida y en el corte se distinguen sus tres capas concéntricas: cutícula, corteza y médula.'},
+  {id:'infund', g:'Segmentos del pelo', name:'Infundíbulo', c:'#f1e3c0', layer:'fol', seg:[0.1,-1.3],
+   d:'Tramo superior del folículo, desde el ostium hasta la desembocadura del conducto sebáceo. Su epitelio queratiniza como la epidermis; es el lugar donde se forman los comedones.'},
+  {id:'raiz', g:'Segmentos del pelo', name:'Raíz', c:'#c99a45', layer:'fol', seg:[-1.3,-5.65],
+   d:'Porción del pelo alojada en el folículo desde la altura del conducto sebáceo hasta el bulbo. Comprende el pelo en formación, el bulbo con la matriz y la papila, y las vainas radiculares interna, externa y conectiva.'},
+
+  {id:'cuticula', g:'Capas del pelo', name:'Cutícula', c:'#0d0b0a', layer:'cut',
+   d:'Capa más externa del tallo: de 6 a 10 hileras de células planas imbricadas como tejas, con el borde libre hacia la punta. Protege la corteza, ancla el pelo a la cutícula de la vaina interna y le da brillo.'},
+  {id:'corteza', g:'Capas del pelo', name:'Corteza', c:'#6a4116', layer:'cut',
+   d:'La mayor parte del tallo. Células fusiformes queratinizadas llenas de macrofibrillas de queratina y gránulos de melanina, que determinan el color, la resistencia y la elasticidad del pelo.'},
+  {id:'medula', g:'Capas del pelo', name:'Médula', c:'#efe3c4', layer:'cut',
+   d:'Eje central de células poco compactas con espacios aéreos. Aparece en pelos terminales gruesos y suele ser discontinua hacia la punta; falta en el vello y en muchos pelos finos.'},
+  {id:'bulbo', g:'Bulbo', name:'Bulbo', c:'#d8b25c', layer:'fol', ring:true,
+   d:'Porción terminal engrosada de la raíz, con forma de cebolla, alojada en la dermis profunda o la hipodermis. Contiene la matriz germinativa y los melanocitos, y envuelve por su base a la papila dérmica.'},
+  {id:'matriz', g:'Bulbo', name:'Matriz del pelo', c:'#ecd28e', layer:'fol',
+   d:'Epitelio germinativo del bulbo, con altísima actividad mitótica, que rodea a la papila. Produce el tallo y la vaina radicular interna durante el anágeno.'},
+  {id:'papila', g:'Bulbo', name:'Papila dérmica', c:'#e695a3', layer:'fol',
+   d:'Invaginación de tejido conectivo en la base del bulbo. Sus fibroblastos especializados emiten las señales que inician y sostienen el ciclo del pelo; su volumen se relaciona con el grosor del tallo.'},
+  {id:'capilares', g:'Bulbo', name:'Vasos de la papila', c:'#c8283c', layer:'fol',
+   d:'Asas arteriolares (rojo) y venulares (azul) que ascienden desde el plexo vascular profundo hasta el interior de la papila para nutrir la matriz.'},
+
+  {id:'irs', g:'Vainas foliculares', name:'Vaina radicular interna', c:'#e9cf6f', layer:'fol',
+   d:'Capa queratinizada (capas de Henle, de Huxley y cutícula propia) que moldea el pelo y lo acompaña hasta cerca de la desembocadura del conducto sebáceo, donde se desintegra.'},
+  {id:'ors', g:'Vainas foliculares', name:'Vaina radicular externa', c:'#7f93de', layer:'fol',
+   d:'Epitelio continuo con la epidermis, rico en glucógeno en su tramo inferior. Reviste el folículo desde el ostium hasta el bulbo.'},
+  {id:'ct', g:'Vainas foliculares', name:'Vaina conectiva', c:'#efe2e2', layer:'fol',
+   d:'Envoltura dérmica externa del folículo, de tejido conectivo, que lo separa de la dermis que lo rodea.'}
+];
+ITEMS.forEach((it,i)=>it.n=i+1);
+const BYID = Object.fromEntries(ITEMS.map(i=>[i.id,i]));
+
+/* ---------- Renderizador y escena ---------- */
+let renderer;
+try { renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true}); }
+catch(e){ $('#app').insertAdjacentHTML('beforeend','<div id="err">Este navegador no permite WebGL, necesario para el modelo 3D.</div>'); return; }
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+renderer.setClearColor(0x000000, 0);
+renderer.localClippingEnabled = true;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 300);
+const controls = new THREE.OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+controls.minDistance = 3; controls.maxDistance = 45; controls.autoRotateSpeed = 0.7;
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8fa0, 0.62));
+const key = new THREE.DirectionalLight(0xffffff, 0.62); key.position.set(4, 7, 10); scene.add(key);
+const rim = new THREE.DirectionalLight(0xfff1e6, 0.25); rim.position.set(-8, 3, -4); scene.add(rim);
+scene.add(new THREE.AmbientLight(0xffffff, 0.12));
+
+const V = (x,y,z=0)=>new THREE.Vector3(x,y,z);
+const clip = new THREE.Plane(V(0,0,-1), 0);       // corte sagital: conserva z <= 0
+const surf = new THREE.Plane(V(0,-1,0), 0.15);    // recorta el folículo a ras de la superficie
+
+/* ---------- Texturas procedurales ---------- */
+let seed = 20261109;
+const R = ()=> (seed = seed*16807 % 2147483647) / 2147483647;
+const pick = a => a[Math.floor(R()*a.length)];
+function tex(w,h,draw,rx=1,ry=1){
+  const c=document.createElement('canvas'); c.width=w; c.height=h;
+  const g=c.getContext('2d'); draw(g,w,h);
+  const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(rx,ry);
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy(); return t;
+}
+function dotted(base,dot,count,r0,r1,a=1){
+  return (g,w,h)=>{ g.fillStyle=base; g.fillRect(0,0,w,h); g.fillStyle=dot;
+    for(let i=0;i<count;i++){ g.globalAlpha=a*(0.35+0.65*R()); const r=r0+R()*(r1-r0);
+      g.beginPath(); g.ellipse(R()*w,R()*h,r,r*(0.65+R()*0.5),R()*3,0,7); g.fill(); }
+    g.globalAlpha=1; };
+}
+function cells(base,edge,fill,n,rad){
+  return (g,w,h)=>{ g.fillStyle=base; g.fillRect(0,0,w,h);
+    const step=w/n; for(let i=-1;i<=n;i++) for(let j=-1;j<=n;j++){
+      const x=(i+.5+(R()-.5)*.5)*step, y=(j+.5+(R()-.5)*.5)*step, r=rad*(0.8+R()*0.35);
+      g.beginPath(); g.ellipse(x,y,r,r*(0.8+R()*0.3),R()*3,0,7); g.fillStyle=fill; g.fill();
+      g.lineWidth=2; g.strokeStyle=edge; g.globalAlpha=.8; g.stroke(); g.globalAlpha=1;
+      g.fillStyle=edge; g.globalAlpha=.55; g.beginPath(); g.arc(x+(R()-.5)*r*.6,y+(R()-.5)*r*.6,2,0,7); g.fill(); g.globalAlpha=1; } };
+}
+const T = {
+  corneo: ()=>tex(512,64,(g,w,h)=>{ g.fillStyle='#e3a862'; g.fillRect(0,0,w,h);
+      for(let i=0;i<70;i++){ g.strokeStyle=pick(['#f3cd93','#cf8f4a']); g.globalAlpha=.55; g.lineWidth=1+R()*1.5;
+        const y=R()*h, x=R()*w; g.beginPath(); g.moveTo(x,y); g.lineTo(x+30+R()*90,y+(R()-.5)*3); g.stroke(); }
+      g.globalAlpha=1; g.fillStyle='#c48544'; for(let i=0;i<14;i++){ g.beginPath(); g.ellipse(R()*w,R()*h,6+R()*8,2+R()*2,0,0,7); g.globalAlpha=.4; g.fill(); }
+      g.globalAlpha=1; }, 9, 1),
+  epid: ()=>tex(512,256,(g,w,h)=>{ dotted('#8a9de0','#4a5ec0',1500,1,2.6,.9)(g,w,h);
+      const gr=g.createLinearGradient(0,0,0,h*.42); gr.addColorStop(0,'rgba(236,238,248,1)'); gr.addColorStop(.55,'rgba(236,238,248,.75)'); gr.addColorStop(1,'rgba(236,238,248,0)');
+      g.fillStyle=gr; g.fillRect(0,0,w,h*.42);
+      g.fillStyle='#7d87c4'; for(let i=0;i<260;i++){ g.globalAlpha=.6; g.beginPath(); g.arc(R()*w,R()*h*.28,1+R()*1.2,0,7); g.fill(); }
+      g.globalAlpha=.55; g.fillStyle='#4256b8'; g.fillRect(0,h*.92,w,h*.08); g.globalAlpha=1; }, 16, 1),
+  dermis: ()=>tex(512,512,(g,w,h)=>{ g.fillStyle='#f3cbc5'; g.fillRect(0,0,w,h);
+      for(let i=0;i<190;i++){ g.strokeStyle=pick(['#e8a3a3','#fbe9e4','#e2909b','#f7d8d2','#fdf3f0']); g.globalAlpha=.22+R()*.38; g.lineWidth=1+R()*8;
+        const y=R()*h, x=-80+R()*w; g.beginPath(); g.moveTo(x,y);
+        g.bezierCurveTo(x+90,y+(R()-.5)*110,x+210,y+(R()-.5)*110,x+300+R()*220,y+(R()-.5)*70); g.stroke(); }
+      g.globalAlpha=1; }, 1, 1),
+  hipo: ()=>tex(512,512,cells('#d9bf78','#c2a35a','#f5e8bf',8,27),5,1),
+  cuticle: ()=>tex(256,256,(g,w,h)=>{ g.fillStyle='#0d0b0a'; g.fillRect(0,0,w,h);
+      for(let y=0;y<h+16;y+=16){ const off=(y/16)%2?12:0;
+        for(let x=-24;x<w+24;x+=24){ g.beginPath(); g.moveTo(x+off-12,y); g.quadraticCurveTo(x+off,y-11,x+off+12,y);
+          g.strokeStyle='#3a3431'; g.globalAlpha=.9; g.lineWidth=1.4; g.stroke();
+          g.fillStyle='#1c1816'; g.globalAlpha=.6; g.fill(); } }
+      g.globalAlpha=1; }, 3, 26),
+  cortex: ()=>tex(256,256,(g,w,h)=>{ g.fillStyle='#6a4116'; g.fillRect(0,0,w,h);
+      for(let i=0;i<150;i++){ g.fillStyle=pick(['#8b5a22','#4a2b0c','#7a4c1b','#9c6a2c']); g.globalAlpha=.5; g.fillRect(R()*w,0,1+R()*2.5,h); }
+      g.fillStyle='#2e1806'; for(let i=0;i<260;i++){ g.globalAlpha=.7; g.beginPath(); g.ellipse(R()*w,R()*h,1,3+R()*3,0,0,7); g.fill(); }
+      g.globalAlpha=1; }, 3, 10),
+  medulla: ()=>tex(256,256,(g,w,h)=>{ g.fillStyle='#efe3c4'; g.fillRect(0,0,w,h);
+      for(let i=0;i<70;i++){ g.fillStyle=pick(['#a8956c','#cdbb90']); g.globalAlpha=.75; g.beginPath(); g.ellipse(R()*w,R()*h,4+R()*9,3+R()*6,0,0,7); g.fill(); }
+      g.globalAlpha=1; }, 2, 5),
+  ct: ()=>tex(256,256,(g,w,h)=>{ g.fillStyle='#f6eded'; g.fillRect(0,0,w,h);
+      for(let i=0;i<60;i++){ g.strokeStyle='#e3c9cc'; g.globalAlpha=.6; g.lineWidth=1; const x=R()*w; g.beginPath(); g.moveTo(x,0); g.bezierCurveTo(x+8,h*.3,x-8,h*.6,x+4,h); g.stroke(); }
+      g.globalAlpha=1; }, 6, 6),
+  ors: ()=>tex(256,256,dotted('#8195de','#3a4eb2',650,1,2.3,.9),8,10),
+  irs: ()=>tex(256,256,dotted('#ebd172','#b48f2a',380,1,2,.8),8,10),
+  matriz: ()=>tex(256,256,dotted('#ffffff','#a77d45',700,1.2,2.6,.75),6,6),
+  papila: ()=>tex(256,256,dotted('#e99aa6','#bd546d',520,1.2,2.6,.8),5,4),
+  lumen: ()=>tex(256,256,(g,w,h)=>{ g.fillStyle='#f3e7c8'; g.fillRect(0,0,w,h);
+      for(let i=0;i<90;i++){ g.strokeStyle=pick(['#d8bf86','#e9d6a6']); g.globalAlpha=.8; g.lineWidth=1.3; const x=R()*w,y=R()*h; g.beginPath(); g.arc(x,y,6+R()*12,R()*3,R()*3+1.2); g.stroke(); }
+      g.globalAlpha=1; }, 4, 4),
+  bulge: ()=>tex(256,256,dotted('#5d72cd','#26369a',800,1,2.4,.9),8,4),
+  sebo: ()=>tex(256,256,cells('#f3dc8a','#c69f3e','#f8e7a8',7,15),2,2),
+  basal: ()=>tex(256,256,dotted('#6f86d8','#2f42a4',700,1,2.2,.9),3,3),
+  muscle: ()=>tex(256,128,(g,w,h)=>{ g.fillStyle='#ffffff'; g.fillRect(0,0,w,h);
+      for(let i=0;i<70;i++){ g.strokeStyle=pick(['#f0c2c9','#ffe9ec','#e6a7b2']); g.globalAlpha=.8; g.lineWidth=1+R()*2; const y=R()*h; g.beginPath(); g.moveTo(0,y); g.lineTo(w,y+(R()-.5)*6); g.stroke(); }
+      g.fillStyle='#8f2236'; for(let i=0;i<40;i++){ g.globalAlpha=.5; g.beginPath(); g.ellipse(R()*w,R()*h,6,1.4,0,0,7); g.fill(); }
+      g.globalAlpha=1; }, 3, 2),
+};
+
+/* ---------- Registro de mallas por estructura ---------- */
+const MESHES = {};
+function reg(id,obj){ (MESHES[id]=MESHES[id]||[]).push(obj); obj.traverse(o=>{ if(o.isMesh) o.userData.id=id; }); return obj; }
+function fmat(color,map,extra){ // material de folículo: recortado por el corte y por la superficie
+  return new THREE.MeshStandardMaterial(Object.assign({color,map,roughness:.72,metalness:0,side:THREE.DoubleSide,clippingPlanes:[clip,surf]},extra||{}));
+}
+function cmat(color,map,extra){ // material recortado solo por el corte
+  return new THREE.MeshStandardMaterial(Object.assign({color,map,roughness:.7,metalness:0,side:THREE.DoubleSide,clippingPlanes:[clip]},extra||{}));
+}
+const S = (arr,n)=> new THREE.SplineCurve(arr.map(p=>new THREE.Vector2(p[0],p[1]))).getPoints(n||Math.max(30,arr.length*10));
+
+/* ---------- Bloque de piel ---------- */
+const X0=-4.6, X1=4.9, Z0=-2.6, Z1=2.6;
+const J  = (x,z)=> -0.40 - 0.10*Math.pow(0.5+0.5*Math.sin(x*2.4+0.6),2)*(0.75+0.25*Math.cos(z*1.7)); // unión dermoepidérmica
+const TOPC = (x,z)=> 0.14 + 0.012*Math.sin(x*1.3)*Math.cos(z*1.1);
+const DB = (x)=> -4.9 + 0.08*Math.sin(x*0.9);
+const HB = ()=> -6.5;
+const HIDE = new THREE.MeshBasicMaterial({visible:false});
+const skinFront = new THREE.Group(), skinBack = new THREE.Group();
+scene.add(skinBack, skinFront);
+
+function slab(z0,z1,top,bot,m,showTop,showBot,isBack){
+  const g=new THREE.BoxGeometry(1,1,1,110,1,30); const p=g.attributes.position;
+  for(let i=0;i<p.count;i++){ const x=X0+(p.getX(i)+.5)*(X1-X0), z=z0+(p.getZ(i)+.5)*(z1-z0);
+    p.setXYZ(i,x,p.getY(i)>0?top(x,z):bot(x,z),z); }
+  g.computeVertexNormals();
+  let mats;
+  if(isBack){ const cut=m.clone(); cut.depthWrite=false; cut.userData.cutFace=true;
+    mats=[m,m,showTop?m:HIDE,showBot?m:HIDE,cut,m]; }
+  else mats=[m,m,showTop?m:HIDE,showBot?m:HIDE,m,HIDE];
+  const mesh=new THREE.Mesh(g,mats); mesh.renderOrder=-1; return mesh;
+}
+function skinLayer(id,map,color,top,bot,showTop,showBot){
+  const m=new THREE.MeshStandardMaterial({color,map,roughness:.85,metalness:0});
+  const b=slab(Z0,0,top,bot,m,showTop,showBot,true), f=slab(0,Z1,top,bot,m,showTop,showBot,false);
+  skinBack.add(reg(id,b)); skinFront.add(reg(id,f));
+}
+skinLayer('corneo',T.corneo(),0xffffff,TOPC,()=>0,true,false);
+skinLayer('epid',T.epid(),0xffffff,()=>0,J,false,false);
+skinLayer('dermis',T.dermis(),0xffffff,J,(x)=>DB(x),false,false);
+skinLayer('hipo',T.hipo(),0xffffff,(x)=>DB(x),HB,false,true);
+
+/* ---------- Folículo (marco local: eje Y, superficie en y=0) ---------- */
+const yb = -5.6;
+const fol = new THREE.Group(); fol.position.set(0.5,0,0); fol.rotation.z = -0.32; scene.add(fol); fol.updateMatrixWorld(true);
+const LW = (x,y,z=0)=> fol.localToWorld(V(x,y,z));
+function lat(id,pts,m,parent){ const g=new THREE.LatheGeometry(pts,112); g.computeVertexNormals();
+  const me=new THREE.Mesh(g,m); me.userData.clipped=true; me.userData.surf=!!(m.clippingPlanes&&m.clippingPlanes.includes(surf));
+  (parent||fol).add(me); reg(id,me); return me; }
+
+// Vaina de tejido conectivo (la más externa)
+lat('ct', S([[0.2,yb-0.04],[0.52,yb+0.04],[0.78,yb+0.42],[0.87,yb+1.0],[0.81,yb+1.7],[0.64,yb+2.5],[0.565,-2.7],[0.545,-1.6],[0.565,-0.7],[0.67,-0.2],[0.82,0.15],[0.98,0.75]],140), fmat(0xffffff,T.ct()));
+// Vaina radicular externa
+lat('ors', S([[0.26,yb+0.03],[0.52,yb+0.12],[0.72,yb+0.45],[0.81,yb+1.0],[0.75,yb+1.7],[0.585,yb+2.5],[0.505,-2.7],[0.485,-1.6],[0.505,-0.7],[0.6,-0.2],[0.74,0.15],[0.88,0.75]],140), fmat(0xffffff,T.ors()));
+// Protuberancia (bulge): banda más oscura en la vaina externa
+lat('bulge', S([[0.44,-3.55],[0.475,-3.35],[0.48,-3.2],[0.475,-3.0],[0.45,-2.85]],40), fmat(0xffffff,T.bulge()));
+// Vaina radicular interna (termina en el istmo)
+lat('irs', S([[0.3,yb+0.1],[0.52,yb+0.24],[0.635,yb+0.6],[0.665,yb+1.0],[0.605,yb+1.7],[0.43,yb+2.5],[0.295,-2.7],[0.24,-2.1],[0.2,-1.62]],110), fmat(0xffffff,T.irs()));
+// Canal folicular (infundíbulo) con queratina y sebo
+lat('infund', S([[0.15,-1.72],[0.3,-1.5],[0.44,-1.0],[0.475,-0.6],[0.56,-0.2],[0.7,0.15],[0.84,0.75]],70), fmat(0xffffff,T.lumen()));
+// Matriz (bulbo) con gradiente hacia la zona queratógena
+(function(){
+  const inner = S([[0.0,yb+1.0],[0.14,yb+0.89],[0.215,yb+0.55],[0.21,yb+0.25],[0.16,yb+0.0]],26);
+  const outer = S([[0.24,yb+0.07],[0.32,yb+0.16],[0.5,yb+0.3],[0.585,yb+0.6],[0.6,yb+1.0],[0.545,yb+1.7],[0.38,yb+2.5],[0.25,-2.7],[0.195,-2.2]],80);
+  const m = fmat(0xffffff,T.matriz(),{vertexColors:true});
+  const me = lat('matriz', inner.concat(outer), m);
+  const p=me.geometry.attributes.position, col=[], a=new THREE.Color('#ecd08a'), b=new THREE.Color('#b98a3e'), c=new THREE.Color();
+  for(let i=0;i<p.count;i++){ const y=p.getY(i); const t=THREE.MathUtils.smoothstep(y, yb+1.9, -2.2); c.copy(a).lerp(b,t); col.push(c.r,c.g,c.b); }
+  me.geometry.setAttribute('color', new THREE.Float32BufferAttribute(col,3));
+})();
+// Papila dérmica
+lat('papila', S([[0.12,yb-0.42],[0.14,yb-0.05],[0.2,yb+0.25],[0.205,yb+0.55],[0.13,yb+0.86],[0.0,yb+0.97]],50), fmat(0xffffff,T.papila()));
+// Pelo en tres capas concéntricas (cutícula, corteza, médula) desde el bulbo, justo sobre la papila, hasta la punta.
+// En el bulbo siguen el cono de la matriz; por encima de la piel se seccionan igual que el resto.
+lat('cuticula', S([[0.0,yb+1.12],[0.3,yb+1.25],[0.4,yb+1.7],[0.3,yb+2.5],[0.215,-2.7],[0.19,-2.26],[0.183,-1.8],[0.172,-0.5],[0.17,1.0],[0.163,2.4],[0.145,3.1],[0.09,3.38],[0.0,3.44]],130), cmat(0xffffff,T.cuticle(),{roughness:.38}));
+lat('corteza', S([[0.0,yb+1.16],[0.25,yb+1.28],[0.355,yb+1.7],[0.26,yb+2.5],[0.18,-2.7],[0.148,-2.3],[0.14,-1.8],[0.13,-0.5],[0.128,1.0],[0.122,2.4],[0.106,3.05],[0.06,3.27],[0.0,3.31]],130), cmat(0xffffff,T.cortex(),{roughness:.55}));
+(function(){
+  const m = cmat(0xffffff,T.medulla(),{roughness:.7});
+  lat('medula', S([[0.0,yb+1.22],[0.05,yb+1.3],[0.07,yb+1.8],[0.058,-2.6],[0.05,-1.5],[0.048,0.5],[0.04,1.38],[0.0,1.42]],80), m);
+  const cap = (y0,y1,r)=> S([[0.0,y0],[r*0.85,y0+0.04],[r,(y0+y1)/2],[r*0.85,y1-0.04],[0.0,y1]],24);
+  [[1.58,2.02,0.044],[2.18,2.46,0.04],[2.62,2.78,0.034]].forEach(s=>lat('medula',cap(s[0],s[1],s[2]),m));
+})();
+
+// Conducto sebáceo
+(function(){
+  const curve = new THREE.CatmullRomCurve3([V(0.4,-1.27,0),V(0.62,-1.36,0),V(0.84,-1.5,0)]);
+  const me = new THREE.Mesh(new THREE.TubeGeometry(curve,24,0.095,16,false), cmat(0xffffff,T.basal()));
+  me.userData.clipped=true; fol.add(me); reg('conducto',me);
+  const core = new THREE.Mesh(new THREE.TubeGeometry(curve,24,0.05,12,false), cmat('#f3e2a8'));
+  core.userData.clipped=true; fol.add(core); reg('conducto',core);
+})();
+// Glándula sebácea: acinos con capa basal periférica (azul) y sebocitos (amarillo)
+(function(){
+  const gl = new THREE.Group(); gl.position.set(1.02,-1.56,0); fol.add(gl);
+  const outerM = cmat(0xffffff,T.basal()), innerM = cmat(0xffffff,T.sebo(),{roughness:.55});
+  const ac = [[0,0,0,.3],[.28,.21,0,.24],[.31,-.19,0,.25],[-.02,-.33,0,.21],[.1,.33,0,.2],[.47,.02,0,.2],[.16,.06,-.3,.26],[.22,-.08,.28,.24],[.0,.1,.25,.2],[.35,.12,-.22,.2]];
+  ac.forEach(a=>{
+    const o=new THREE.Mesh(new THREE.SphereGeometry(a[3],40,28),outerM); o.position.set(a[0],a[1],a[2]); o.userData.clipped=true; gl.add(o);
+    const i=new THREE.Mesh(new THREE.SphereGeometry(a[3]-0.035,40,28),innerM); i.position.copy(o.position); i.userData.clipped=true; gl.add(i);
+  });
+  reg('gland',gl);
+  // conductillos internos ramificados
+  const dm = cmat('#7d4f25',null,{roughness:.5});
+  [[[-.18,.2],[0,.05],[.2,.0],[.42,.05]],[[0,.05],[.06,-.2],[.02,-.42]],[[.2,0],[.32,-.2],[.4,-.32]],[[.2,0],[.24,.2],[.32,.36]],[[.06,-.2],[.2,-.28]],[[.24,.2],[.1,.3]]]
+    .forEach(seg=>{ const cu=new THREE.CatmullRomCurve3(seg.map(p=>V(p[0],p[1],-0.04)));
+      const me=new THREE.Mesh(new THREE.TubeGeometry(cu,20,0.016,6,false),dm); me.userData.clipped=true; gl.add(me); reg('gland',me); });
+})();
+
+/* ---------- Melanocitos ---------- */
+const melMat = new THREE.MeshStandardMaterial({color:'#3a2313',roughness:.55});
+const melBody = new THREE.SphereGeometry(0.036,14,10), melDend = new THREE.CylinderGeometry(0.007,0.014,1,5);
+function melanocyte(parent,p,rot){
+  const g=new THREE.Group(); g.position.copy(p);
+  g.add(new THREE.Mesh(melBody,melMat));
+  for(let k=0;k<5;k++){ const a=rot+k*1.2566+(R()-.5)*.5, len=.06+R()*.06; const d=new THREE.Mesh(melDend,melMat);
+    d.scale.y=len; d.rotation.z=a-Math.PI/2; d.position.set(Math.cos(a)*(0.03+len/2),Math.sin(a)*(0.03+len/2),0); g.add(d); }
+  parent.add(g); reg('mel',g); return g;
+}
+const bulbMel = [[-0.28,yb+0.42],[-0.27,yb+0.68],[-0.17,yb+0.92],[0.17,yb+0.92],[0.27,yb+0.68],[0.28,yb+0.42]];
+bulbMel.forEach((p,i)=>melanocyte(fol,V(p[0],p[1],-0.045),i*0.7));
+const basalMel = new THREE.Group(); skinBack.add(basalMel);
+for(let x=X0+0.35;x<X1-0.2;x+=0.82){ if(Math.abs(x-0.55)<1.05) continue; melanocyte(basalMel,V(x,J(x,-0.045)+0.065,-0.045),Math.PI/2); }
+
+/* ---------- Vasos ---------- */
+function vessel(points,color,r){ const cu=new THREE.CatmullRomCurve3(points);
+  const me=new THREE.Mesh(new THREE.TubeGeometry(cu,120,r,10,false),cmat(color,null,{roughness:.45}));
+  me.userData.clipped=true; scene.add(me); reg('capilares',me); return me; }
+vessel([V(-4.5,-6.05,-0.07),V(-2.8,-6.12,-0.07),LW(-0.42,yb-1.15,-0.07),LW(-0.08,yb-0.7,-0.07),LW(-0.09,yb+0.2,-0.07),LW(-0.07,yb+0.7,-0.07),LW(0,yb+0.86,-0.07)],'#c8283c',0.034);
+vessel([LW(0,yb+0.86,-0.07),LW(0.07,yb+0.7,-0.07),LW(0.09,yb+0.2,-0.07),LW(0.1,yb-0.7,-0.07),LW(0.5,yb-1.2,-0.07),V(1.6,-6.25,-0.07),V(4.8,-6.2,-0.07)],'#3b6fd1',0.038);
+
+/* ---------- Músculo erector y fibras tendinosas ---------- */
+function taperTube(curve,rfn,tSeg,rSeg,colorFn,m){
+  const fr=curve.computeFrenetFrames(tSeg,false), pos=[],nor=[],uv=[],col=[],idx=[], P=V(0,0), N=V(0,0), C=new THREE.Color();
+  for(let i=0;i<=tSeg;i++){ const t=i/tSeg; curve.getPointAt(t,P); const r=rfn(t); colorFn(t,C);
+    for(let j=0;j<=rSeg;j++){ const v=j/rSeg*Math.PI*2, s=Math.sin(v), c=-Math.cos(v);
+      N.set(c*fr.normals[i].x+s*fr.binormals[i].x, c*fr.normals[i].y+s*fr.binormals[i].y, c*fr.normals[i].z+s*fr.binormals[i].z).normalize();
+      pos.push(P.x+r*N.x,P.y+r*N.y,P.z+r*N.z); nor.push(N.x,N.y,N.z); uv.push(t,j/rSeg); col.push(C.r,C.g,C.b); } }
+  for(let i=0;i<tSeg;i++) for(let j=0;j<rSeg;j++){ const a=i*(rSeg+1)+j, b=(i+1)*(rSeg+1)+j; idx.push(a,b,a+1,b,b+1,a+1); }
+  const g=new THREE.BufferGeometry(); g.setIndex(idx);
+  g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(nor,3));
+  g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2)); g.setAttribute('color',new THREE.Float32BufferAttribute(col,3));
+  return new THREE.Mesh(g,m);
+}
+const mStart = LW(0.6,-3.22,0), mEnd = V(4.15,-0.66,0);
+const muscleCurve = new THREE.CatmullRomCurve3([mStart, V(1.3,-3.0,0), V(2.75,-2.15,0), mEnd]);
+const tendon = new THREE.Color('#ead8a2'), belly = new THREE.Color('#d0304c'), belly2 = new THREE.Color('#e86a7f');
+const muscle = taperTube(muscleCurve, t=>0.035+0.17*Math.pow(Math.sin(Math.PI*t),1.25), 120, 28,
+  (t,C)=>{ const e=THREE.MathUtils.smoothstep(t,0.05,0.24)*(1-THREE.MathUtils.smoothstep(t,0.78,0.95)); const mid=Math.sin(Math.PI*t);
+           C.copy(tendon).lerp(belly2,e).lerp(belly,e*mid*0.85); },
+  cmat(0xffffff,T.muscle(),{vertexColors:true,roughness:.6}));
+muscle.userData.clipped=true; scene.add(muscle); reg('musculo',muscle);
+const fibM = cmat('#e3cf93',null,{roughness:.6});
+[3.55,3.85,4.2,4.5,4.78].forEach((x,i)=>{
+  const end=V(x,J(x,0)+0.03,-0.03*(i%2)), mid=V((mEnd.x+x)/2+0.05,(mEnd.y+end.y)/2+0.05,-0.02);
+  const me=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([mEnd,mid,end]),20,0.022,6,false),fibM);
+  me.userData.clipped=true; scene.add(me); reg('musculo',me);
+});
+[[0.62,-3.7],[0.66,-4.25]].forEach(p=>{
+  const me=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([mStart,LW(0.66,(p[1]-3.22)/2,0),LW(p[0]+0.02,p[1],0)]),20,0.02,6,false),fibM);
+  me.userData.clipped=true; scene.add(me); reg('musculo',me);
+});
+
+/* ---------- Corchetes de los segmentos del pelo: tallo, infundíbulo y raíz ---------- */
+const SEGX = -1.32, SEGS = {};
+ITEMS.filter(it=>it.seg).forEach(it=>{
+  const a=it.seg[0], b=it.seg[1], x=SEGX;
+  const pts=[V(x+0.13,a-0.03,0.03),V(x,a-0.03,0.03),V(x,b+0.03,0.03),V(x+0.13,b+0.03,0.03)];
+  const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:0x4b566d}));
+  fol.add(line); SEGS[it.id]=line;
+});
+// Círculo del bulbo: rodea la parte engrosada sin tocar las vainas, y se abre abajo para no cruzar los vasos
+const RING = {cx:0, cy:yb+0.9, rx:1.15, ry:1.3, gap:20};
+(function(){
+  const pts=[], a0=-90+RING.gap, a1=270-RING.gap;
+  for(let i=0;i<=120;i++){ const a=THREE.MathUtils.degToRad(a0+(a1-a0)*i/120);
+    pts.push(V(RING.cx+RING.rx*Math.cos(a), RING.cy+RING.ry*Math.sin(a), 0.03)); }
+  const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:0x4b566d}));
+  fol.add(line); SEGS.bulbo=line;
+})();
+
+/* ---------- Resaltado del tramo de pelo de cada segmento ---------- */
+// Copias de las capas del pelo, recortadas entre dos planos perpendiculares al eje, que tiñen solo ese tramo.
+const AXIS = V(0,1,0).applyQuaternion(fol.quaternion).normalize();
+const OVER = {};
+const SEGBAND = {tallo:[3.6,0.0], infund:[0.0,-1.3], raiz:[-1.3,-4.6]};
+Object.keys(SEGBAND).forEach(id=>{
+  const a=SEGBAND[id][0], b=SEGBAND[id][1];
+  const top=new THREE.Plane().setFromNormalAndCoplanarPoint(AXIS.clone().negate(), LW(0,a));
+  const bot=new THREE.Plane().setFromNormalAndCoplanarPoint(AXIS.clone(), LW(0,b));
+  const m=new THREE.MeshBasicMaterial({color:'#e0284f',transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide,
+    polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-4,clippingPlanes:[clip,top,bot]});
+  const g=new THREE.Group(); g.visible=false; g.userData.mat=m;
+  [].concat(MESHES.cuticula,MESHES.corteza,MESHES.medula).forEach(src=>g.add(new THREE.Mesh(src.geometry,m)));
+  fol.add(g); OVER[id]=g;
+});
+
+/* ---------- Anclas de los marcadores ---------- */
+const z0=0.02;
+const ANCH = {
+  cuticula:LW(0.152,1.0,z0), corteza:LW(0.075,1.62,z0), medula:LW(0,2.32,z0), matriz:LW(-0.45,yb+1.0,z0),
+  papila:LW(0,yb+0.45,z0), capilares:LW(0.09,yb-0.7,z0), irs:LW(-0.63,yb+1.25,z0), ors:LW(-0.4,-2.2,z0),
+  ct:LW(-0.8,yb+0.6,z0)
+};
+ITEMS.filter(it=>it.seg).forEach(it=>{ ANCH[it.id]=LW(SEGX,(it.seg[0]+it.seg[1])/2,0.03); });
+ANCH.bulbo = LW(RING.cx+RING.rx, RING.cy, 0.03);
+// Posición de cada número fuera de la estructura (marco local del folículo); una flecha une el número con su ancla.
+// Capas del pelo: columna a la derecha del tallo, sobre la piel. Bulbo y vainas: columna a la izquierda, fuera del corchete de la raíz.
+// Las filas siguen el orden vertical de las anclas para que las flechas no se crucen.
+const LAB = {cuticula:[1.05,1.0], corteza:[1.05,1.62], medula:[1.05,2.32],
+  ors:[-2.75,-2.3], irs:[-2.75,-3.7], matriz:[-2.75,-4.4], ct:[-2.75,-5.1], papila:[-2.75,-5.8], capilares:[-2.75,-6.6]};
+const LABP = {}; Object.keys(LAB).forEach(id=>{ LABP[id]=LW(LAB[id][0],LAB[id][1],0.03); });
+
+/* ---------- Interfaz: leyenda, marcadores, ficha ---------- */
+const legend=$('#legend'), markers=$('#markers');
+const SVGNS='http://www.w3.org/2000/svg';
+const leaders=document.createElementNS(SVGNS,'svg'); leaders.id='leaders'; leaders.setAttribute('aria-hidden','true');
+leaders.innerHTML='<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 1L10 5L0 9z" style="fill:var(--ink)"/></marker>'+
+  '<marker id="ahOn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 1L10 5L0 9z" style="fill:var(--accent)"/></marker></defs>';
+markers.appendChild(leaders);
+function mkLine(cls){ const l=document.createElementNS(SVGNS,'line'); l.setAttribute('class',cls); leaders.appendChild(l); return l; }
+let curG=null;
+const groupsOn={}, groupBtns={};
+ITEMS.forEach(it=>{
+  if(it.g!==curG){ curG=it.g; const g=it.g;
+    groupsOn[g] = false;
+    const row=document.createElement('div'); row.className='gh';
+    const h=document.createElement('h3'); h.textContent=g; row.appendChild(h);
+    const t=document.createElement('button'); t.type='button'; t.className='gt';
+    t.addEventListener('click',()=>setGroup(g,!groupsOn[g]));
+    row.appendChild(t); legend.appendChild(row); groupBtns[g]=t; }
+  const b=document.createElement('button'); b.className='lg'; b.id='lg-'+it.id; b.type='button';
+  b.innerHTML='<span class="n">'+String(it.n).padStart(2,'0')+'</span><span class="sw" style="background:'+it.c+'"></span><span>'+it.name+'</span>';
+  b.dataset.g=it.g; b.addEventListener('click',()=>select(state.sel===it.id?null:it.id,true)); legend.appendChild(b); it.btn=b;
+  const m=document.createElement('button'); m.className='mk'; m.type='button'; m.textContent=it.n; m.setAttribute('aria-label',it.n+'. '+it.name);
+  m.addEventListener('click',e=>{ e.stopPropagation(); if(quiz) return; select(state.sel===it.id?null:it.id,false); }); markers.appendChild(m); it.mk=m;
+  if(LABP[it.id]) it.ln=[mkLine('halo'),mkLine('ld')];
+});
+const segLabels = ITEMS.filter(it=>it.seg||it.ring).map(it=>{ const d=document.createElement('div'); d.className=it.ring?'seg segR':'seg'; d.textContent=it.name; markers.appendChild(d);
+  return {el:d, p:ANCH[it.id], it}; });
+function setGroup(g,on){
+  groupsOn[g]=on; const t=groupBtns[g];
+  t.setAttribute('aria-pressed',on); t.textContent = on ? 'Ocultar' : 'Mostrar';
+  t.setAttribute('aria-label',(on?'Ocultar':'Mostrar')+' etiquetas de '+g);
+  legend.querySelectorAll('.lg').forEach(b=>{ if(b.dataset.g===g) b.classList.toggle('off',!on); });
+  if(!on && state.sel && BYID[state.sel].g===g) select(null);
+}
+function labelOn(it){ return groupsOn[it.g] && itemVisible(it); }
+
+const state={cut:false,skin:true,sel:null}; // al entrar: piel visible, sin corte, sin marcadores
+let quiz=null; // estado del modo autoevaluación
+// Seleccionar = resaltar la estructura (sin ficha de información)
+function select(id,focus){
+  if(state.sel===id) return;
+  if(state.sel){ BYID[state.sel].btn.classList.remove('on'); BYID[state.sel].mk.classList.remove('on'); setGlow(state.sel,0); }
+  if(id && !groupsOn[BYID[id].g]) setGroup(BYID[id].g,true);
+  state.sel=id; themeLines();
+  const nb=$('#nameBox');
+  if(!id){ nb.hidden=true; return; }
+  const it=BYID[id]; it.btn.classList.add('on'); it.mk.classList.add('on');
+  nb.textContent=it.name; nb.hidden=!!quiz;
+  it.btn.scrollIntoView({block:'nearest'});
+  if(focus) frameItem(id);
+}
+// Al entrar no se muestra ningún bloque de marcadores
+Object.keys(groupsOn).forEach(g=>setGroup(g,false));
+function mats(id){ const out=new Set(); (MESHES[id]||[]).forEach(o=>o.traverse(m=>{ if(m.isMesh)(Array.isArray(m.material)?m.material:[m.material]).forEach(x=>{ if(x!==HIDE) out.add(x); }); })); return [...out]; }
+const glowColor=new THREE.Color('#ff2d55'); // resaltado rojizo, visible sobre cualquier color
+function setGlow(id,v){ mats(id).forEach(m=>{ if(m.emissive){ m.emissive.copy(glowColor); m.emissiveIntensity=v; } });
+  if(OVER[id]){ OVER[id].visible=v>0; OVER[id].userData.mat.opacity=Math.min(0.6,v*1.6); } }
+
+function toggle(btn,key,fn){ btn.addEventListener('click',()=>{ state[key]=!state[key]; btn.setAttribute('aria-pressed',state[key]); fn&&fn(); }); }
+toggle($('#tCut'),'cut',applyVis); toggle($('#tSkin'),'skin',applyVis);
+$('#bReset').addEventListener('click',()=>resetView(true));
+function applyVis(){
+  clip.constant = state.cut ? 0 : 1e4;
+  skinBack.visible = state.skin; skinFront.visible = state.skin && !state.cut;
+}
+function itemVisible(it){
+  if(it.layer==='skin') return state.skin;
+  if(it.layer==='fol') return state.cut || !state.skin;
+  if(it.layer==='cut') return state.cut;
+  return true;
+}
+
+/* ---------- Cámara ---------- */
+const HOME_T = V(0.2,-1.7,0);
+let focusDelta = V(0,0,0), focusDist = 0, homeDist = 18;
+// Encuadra a la vez el número (con su rótulo) y la parte resaltada, sin cambiar la orientación de la cámara
+function frameItem(id){
+  const it=BYID[id], pts=[ANCH[id]];
+  if(LABP[id]) pts.push(LABP[id]);
+  if(SEGBAND[id]) pts.push(LW(0,SEGBAND[id][0]), LW(0,SEGBAND[id][1]));
+  if(it.ring) pts.push(LW(RING.cx-RING.rx,RING.cy),LW(RING.cx+RING.rx+0.8,RING.cy),LW(0,RING.cy+RING.ry),LW(0,RING.cy-RING.ry));
+  if(it.seg) pts.push(LW(SEGX-0.9,(it.seg[0]+it.seg[1])/2)); // espacio para el rótulo a la izquierda del corchete
+  const box=new THREE.Box3().setFromPoints(pts);
+  // Incluye la estructura resaltada completa (no solo el punto al que apunta la flecha)
+  (MESHES[id]||[]).forEach(o=>{ if(shown(o)) box.expandByObject(o); });
+  if(state.cut && box.max.z>0) box.max.z=0.05; // la mitad delantera está cortada
+  const c=box.getCenter(V(0,0,0));
+  const r=Math.max(box.getSize(V(0,0,0)).length()/2, 0.9);
+  const w=canvas.clientWidth||1, h=canvas.clientHeight||1, mobile=w<=760;
+  const asp = !panelOn() ? w/h : mobile ? w/(h*0.6) : (w-Math.min(250,w*0.4))/h;
+  const d = r/Math.sin(THREE.MathUtils.degToRad(16))*1.15/Math.min(1,asp);
+  focusDelta.copy(c).sub(controls.target); focusDist = THREE.MathUtils.clamp(d,4,30);
+}
+function layout(){
+  const w=canvas.clientWidth, h=canvas.clientHeight; if(!w||!h) return; renderer.setSize(w,h,false);
+  const mobile = w<=760;
+  if(!panelOn()){ camera.aspect=w/h; camera.setViewOffset(w,h,0,0,w,h); }
+  else if(mobile){ const q=Math.round(h*0.4); camera.aspect=w/(h+q); camera.setViewOffset(w,h+q,0,q,w,h); }
+  else { const p=Math.min(250, w*0.4); camera.aspect=(w+p)/h; camera.setViewOffset(w+p,h,0,0,w,h); }
+  camera.updateProjectionMatrix();
+}
+function resetView(){
+  layout();
+  const w=canvas.clientWidth||1, h=canvas.clientHeight||1, mobile=w<=760;
+  const availAspect = !panelOn() ? w/h : mobile ? w/(h*0.6) : (w-Math.min(250,w*0.4))/h;
+  const fov=THREE.MathUtils.degToRad(32), fitH=10.6/(2*Math.tan(fov/2)), fitW=10.4/(2*Math.tan(fov/2)*Math.max(availAspect,0.3));
+  const d=Math.max(fitH,fitW)*(mobile&&panelOn()?0.62:1);
+  homeDist=d;
+  controls.target.copy(HOME_T); focusDelta.set(0,0,0); focusDist=0;
+  camera.position.copy(HOME_T).add(V(0.24,0.16,1).normalize().multiplyScalar(d));
+  controls.update();
+}
+window.addEventListener('resize',layout);
+
+/* ---------- Mostrar / ocultar el menú ---------- */
+const panel=$('#panel'), menuBtn=$('#menuBtn');
+function panelOn(){ return !panel.hidden; }
+function setPanel(on,save){
+  panel.hidden=!on; menuBtn.setAttribute('aria-expanded',on);
+  menuBtn.title = on ? 'Ocultar etiquetas' : 'Etiquetas'; menuBtn.setAttribute('aria-label', menuBtn.title);
+  layout();
+}
+menuBtn.addEventListener('click',()=>setPanel(!panelOn(),true));
+setPanel(false,false); // al entrar, el menú de marcadores siempre empieza oculto
+let sized=false;
+if(window.ResizeObserver) new ResizeObserver(()=>{ if(!sized && canvas.clientWidth && canvas.clientHeight){ sized=true; resetView(); } else layout(); }).observe(canvas);
+
+/* ---------- Selección con el puntero ---------- */
+const ray=new THREE.Raycaster(), ptr=new THREE.Vector2(), tip=$('#tip');
+const pickables=[skinBack,skinFront,fol,scene];
+function shown(o){ for(let x=o;x;x=x.parent){ if(!x.visible) return false; } return true; }
+function pickAt(cx,cy){
+  const r=canvas.getBoundingClientRect(); ptr.set(((cx-r.left)/r.width)*2-1, -((cy-r.top)/r.height)*2+1);
+  ray.setFromCamera(ptr,camera);
+  const hits=ray.intersectObjects(scene.children,true);
+  let cutHit=null;
+  for(const h of hits){
+    const o=h.object; if(!o.isMesh || !o.userData.id || !shown(o)) continue;
+    const m=Array.isArray(o.material)?o.material[h.face.materialIndex]:o.material;
+    if(m===HIDE || (m && m.visible===false)) continue;
+    if(o.userData.clipped && state.cut && h.point.z>0.002) continue;
+    if(o.userData.surf && h.point.y>0.16) continue;
+    if(m && m.userData.cutFace){ if(!cutHit) cutHit=h; continue; }
+    return BYID[o.userData.id] ? o.userData.id : null;
+  }
+  return null;
+}
+/* ---------- Zoom hacia el cursor (pellizco en trackpad, rueda del ratón y gesto de Safari) ---------- */
+// Se acerca o aleja manteniendo fijo el punto que hay bajo el cursor, en vez de hacerlo hacia el centro.
+const zoomPlane=new THREE.Plane(), zoomHit=V(0,0,0), zoomDir=V(0,0,0);
+function zoomAt(cx,cy,f){
+  const r=canvas.getBoundingClientRect();
+  ptr.set(((cx-r.left)/r.width)*2-1, -((cy-r.top)/r.height)*2+1);
+  ray.setFromCamera(ptr,camera);
+  camera.getWorldDirection(zoomDir);
+  zoomPlane.setFromNormalAndCoplanarPoint(zoomDir, controls.target);
+  if(!ray.ray.intersectPlane(zoomPlane, zoomHit)) return;
+  const d=camera.position.distanceTo(controls.target);
+  f=THREE.MathUtils.clamp(d*f, controls.minDistance, controls.maxDistance)/d;
+  camera.position.sub(zoomHit).multiplyScalar(f).add(zoomHit);
+  controls.target.sub(zoomHit).multiplyScalar(f).add(zoomHit);
+  // Al alejar, el modelo se va recentrando poco a poco: al llegar a la distancia inicial queda centrado como al principio
+  if(f>1){
+    const dNew=d*f, t = dNew>=homeDist || homeDist<=d ? 1 : (dNew-d)/(homeDist-d);
+    const shift=HOME_T.clone().sub(controls.target).multiplyScalar(t);
+    controls.target.add(shift); camera.position.add(shift);
+  }
+  focusDelta.set(0,0,0); focusDist=0;
+  controls.update();
+}
+const appEl=$('#app');
+appEl.addEventListener('wheel',e=>{
+  if(e.target!==canvas) return;
+  e.preventDefault(); e.stopPropagation();   // en captura: OrbitControls no recibe la rueda
+  const unit = e.deltaMode===1 ? 16 : e.deltaMode===2 ? 400 : 1;
+  const k = e.ctrlKey ? 0.012 : 0.0018;      // ctrlKey = pellizco del trackpad
+  zoomAt(e.clientX, e.clientY, Math.exp(THREE.MathUtils.clamp(e.deltaY*unit,-200,200)*k));
+},{capture:true,passive:false});
+let gScale=1;
+appEl.addEventListener('gesturestart',e=>{ e.preventDefault(); gScale=1; });
+appEl.addEventListener('gesturechange',e=>{ e.preventDefault(); if(e.scale>0){ zoomAt(e.clientX,e.clientY,gScale/e.scale); gScale=e.scale; } });
+appEl.addEventListener('gestureend',e=>e.preventDefault());
+
+// Pantallas táctiles: el pellizco con dos dedos acerca hacia el punto medio entre los dedos y, al moverlos, desplaza la vista.
+// Un dedo sigue girando el modelo con OrbitControls.
+function planePoint(cx,cy,out){
+  const r=canvas.getBoundingClientRect();
+  ptr.set(((cx-r.left)/r.width)*2-1, -((cy-r.top)/r.height)*2+1);
+  ray.setFromCamera(ptr,camera); camera.getWorldDirection(zoomDir);
+  zoomPlane.setFromNormalAndCoplanarPoint(zoomDir, controls.target);
+  return ray.ray.intersectPlane(zoomPlane,out);
+}
+const pinchInfo=e=>{ const a=e.touches[0], b=e.touches[1];
+  return {x:(a.clientX+b.clientX)/2, y:(a.clientY+b.clientY)/2, d:Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY)||1}; };
+let pinch=null; const pA=V(0,0,0), pB=V(0,0,0);
+appEl.addEventListener('touchstart',e=>{
+  if(e.target!==canvas || e.touches.length<2) return;
+  e.stopPropagation(); pinch=pinchInfo(e);
+},{capture:true,passive:true});
+appEl.addEventListener('touchmove',e=>{
+  if(!pinch || e.touches.length<2) return;
+  e.stopPropagation(); e.preventDefault();
+  const n=pinchInfo(e);
+  zoomAt(n.x,n.y,pinch.d/n.d);
+  if(planePoint(pinch.x,pinch.y,pA) && planePoint(n.x,n.y,pB)){ pA.sub(pB); camera.position.add(pA); controls.target.add(pA); controls.update(); }
+  pinch=n;
+},{capture:true,passive:false});
+appEl.addEventListener('touchend',e=>{ if(e.touches.length<2) pinch=null; },{capture:true});
+appEl.addEventListener('touchcancel',()=>{ pinch=null; },{capture:true});
+
+// Pasar el ratón no muestra nada; un clic sin arrastrar sobre el modelo quita el resaltado
+let down=null;
+canvas.style.cursor='grab';
+canvas.addEventListener('pointerdown',e=>{ down=[e.clientX,e.clientY]; });
+canvas.addEventListener('pointerup',e=>{
+  if(!down) return; const moved=Math.hypot(e.clientX-down[0],e.clientY-down[1]); down=null;
+  if(moved<=5 && !quiz) select(null);
+});
+
+/* ---------- Modo autoevaluación ---------- */
+// Se resalta un número y hay que elegir el nombre de su estructura entre cuatro opciones.
+const quizEl=$('#quiz'), qOpts=$('#qOpts'), qFb=$('#qFb'), qNext=$('#qNext'), bQuiz=$('#bQuiz');
+const shuffle=a=>{ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
+function setToggle(key,id,v){ state[key]=v; $(id).setAttribute('aria-pressed',v); }
+function startQuiz(){
+  quiz={list:shuffle(ITEMS.map(i=>i.id)), i:0, score:0, answered:false,
+        saved:{cut:state.cut, skin:state.skin, groups:Object.assign({},groupsOn), panel:panelOn(),
+               cam:camera.position.clone(), tgt:controls.target.clone()}};
+  select(null); setPanel(false); menuBtn.disabled=true;
+  setToggle('cut','#tCut',true); setToggle('skin','#tSkin',true); applyVis();
+  Object.keys(groupsOn).forEach(g=>setGroup(g,true));
+  document.body.classList.add('quiz'); bQuiz.setAttribute('aria-pressed',true);
+  quizEl.hidden=false; ask();
+}
+function ask(){
+  const id=quiz.list[quiz.i], it=BYID[id]; quiz.answered=false;
+  select(null); select(id,true);
+  $('#qProg').textContent='Pregunta '+(quiz.i+1)+' de '+quiz.list.length+' · Aciertos: '+quiz.score;
+  $('#qTitle').innerHTML='¿Qué estructura señala el número <span class="qn">'+it.n+'</span>?';
+  const opts=shuffle([id].concat(shuffle(ITEMS.filter(x=>x.id!==id).map(x=>x.id)).slice(0,3)));
+  qOpts.innerHTML=''; qOpts.hidden=false;
+  opts.forEach(o=>{ const b=document.createElement('button'); b.type='button'; b.textContent=BYID[o].name; b.dataset.id=o;
+    b.addEventListener('click',()=>answer(b,o,id)); qOpts.appendChild(b); });
+  qFb.textContent=''; qFb.className=''; qNext.hidden=true;
+}
+function answer(btn,choice,id){
+  if(quiz.answered) return; quiz.answered=true;
+  const ok=choice===id; if(ok) quiz.score++;
+  qOpts.querySelectorAll('button').forEach(b=>{ b.disabled=true; if(b.dataset.id===id) b.classList.add('ok'); });
+  if(!ok) btn.classList.add('bad');
+  qFb.textContent = ok ? 'Correcto.' : 'No es correcto. Es: '+BYID[id].name+'.'; qFb.className = ok?'ok':'bad';
+  $('#qProg').textContent='Pregunta '+(quiz.i+1)+' de '+quiz.list.length+' · Aciertos: '+quiz.score;
+  qNext.textContent = quiz.i===quiz.list.length-1 ? 'Ver resultado' : 'Siguiente';
+  qNext.hidden=false; qNext.focus();
+}
+function result(){
+  select(null); quiz.done=true;
+  $('#qProg').textContent='Resultado';
+  $('#qTitle').textContent='Has acertado '+quiz.score+' de '+quiz.list.length+'.';
+  qOpts.innerHTML=''; qOpts.hidden=true; qFb.className='';
+  const pct=quiz.score/quiz.list.length;
+  qFb.textContent = pct===1 ? 'Todas correctas.' : pct>=0.7 ? 'Buen resultado. Repite para afianzar las que fallaste.' : 'Repasa la leyenda y vuelve a intentarlo.';
+  qNext.textContent='Repetir'; qNext.hidden=false;
+}
+function endQuiz(){
+  if(!quiz) return; const s=quiz.saved; quiz=null;
+  select(null); quizEl.hidden=true; document.body.classList.remove('quiz');
+  bQuiz.setAttribute('aria-pressed',false); menuBtn.disabled=false;
+  setToggle('cut','#tCut',s.cut); setToggle('skin','#tSkin',s.skin); applyVis();
+  Object.keys(s.groups).forEach(g=>setGroup(g,s.groups[g]));
+  setPanel(s.panel,false);
+  focusDelta.set(0,0,0); focusDist=0; camera.position.copy(s.cam); controls.target.copy(s.tgt); controls.update(); // vuelve a la vista de antes
+}
+qNext.addEventListener('click',()=>{
+  if(quiz.done){ const s=quiz.saved; startQuiz(); quiz.saved=s; return; }
+  quiz.i++; if(quiz.i>=quiz.list.length) result(); else ask();
+});
+$('#qExit').addEventListener('click',endQuiz);
+bQuiz.addEventListener('click',()=>{ if(quiz) endQuiz(); else startQuiz(); });
+
+/* ---------- Tema para líneas ---------- */
+function themeLines(){ const cs=getComputedStyle(document.documentElement);
+  const c=cs.getPropertyValue('--ink-2').trim()||'#4b566d', a=cs.getPropertyValue('--accent').trim()||'#b02c47';
+  Object.keys(SEGS).forEach(id=>SEGS[id].material.color.set(state.sel===id?a:c)); }
+themeLines();
+try{ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',themeLines); }catch(e){}
+new MutationObserver(themeLines).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+
+/* ---------- Bucle ---------- */
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const tmp=V(0,0,0);
+function place(el,p,w,h){ tmp.copy(p).project(camera);
+  if(tmp.z>1||tmp.x<-1.1||tmp.x>1.1||tmp.y<-1.1||tmp.y>1.1){ el.style.display='none'; return; }
+  el.style.display='';
+  if(el.classList.contains('mk')){ el.style.translate=((tmp.x+1)/2*w).toFixed(1)+'px '+((1-tmp.y)/2*h).toFixed(1)+'px'; return; }
+  el.style.transform=(el.classList.contains('segR')?'translate(0,-50%) ':el.classList.contains('seg')?'translate(-100%,-50%) ':'')+'translate3d('+((tmp.x+1)/2*w).toFixed(1)+'px,'+((1-tmp.y)/2*h).toFixed(1)+'px,0)';
+}
+function proj(p,w,h){ tmp.copy(p).project(camera); if(tmp.z>1) return null; return {x:(tmp.x+1)/2*w, y:(1-tmp.y)/2*h}; }
+function frame(t){
+  if(focusDelta.lengthSq()>1e-6){ const step=focusDelta.clone().multiplyScalar(0.1); controls.target.add(step); camera.position.add(step); focusDelta.sub(step); }
+  if(focusDist){ const off=camera.position.clone().sub(controls.target), d=off.length();
+    if(Math.abs(d-focusDist)<0.05) focusDist=0; else camera.position.copy(controls.target).add(off.setLength(d+(focusDist-d)*0.1)); }
+  controls.update();
+  if(state.sel) setGlow(state.sel, reduce ? 0.4 : 0.32+0.16*Math.sin(t*0.005));
+  renderer.render(scene,camera);
+  const w=canvas.clientWidth, h=canvas.clientHeight;
+  ITEMS.forEach(it=>{
+    const on=labelOn(it);
+    if(!it.ln){ if(!on){ it.mk.style.display='none'; return; } place(it.mk,ANCH[it.id],w,h); return; }
+    const A=proj(ANCH[it.id],w,h), L=proj(LABP[it.id],w,h);
+    if(!on||!A||!L){ it.mk.style.display='none'; it.ln.forEach(l=>l.style.display='none'); return; }
+    it.mk.style.display=''; it.mk.style.translate=L.x.toFixed(1)+'px '+L.y.toFixed(1)+'px';
+    const dx=A.x-L.x, dy=A.y-L.y, d=Math.hypot(dx,dy)||1, sx=L.x+dx/d*12, sy=L.y+dy/d*12;
+    const sel=state.sel===it.id;
+    it.ln.forEach((l,k)=>{ l.style.display=''; l.setAttribute('x1',sx.toFixed(1)); l.setAttribute('y1',sy.toFixed(1)); l.setAttribute('x2',A.x.toFixed(1)); l.setAttribute('y2',A.y.toFixed(1));
+      if(k===1){ l.setAttribute('marker-end',sel?'url(#ahOn)':'url(#ah)'); l.classList.toggle('on',sel); } });
+  });
+  segLabels.forEach(s=>{ const on=labelOn(s.it); SEGS[s.it.id].visible=on; if(!on){ s.el.style.display='none'; return; } place(s.el,s.p,w,h); });
+  requestAnimationFrame(frame);
+}
+applyVis(); resetView(); requestAnimationFrame(frame);
+})();
+</script>
+
+</body></html>
